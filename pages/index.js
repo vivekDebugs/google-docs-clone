@@ -29,6 +29,24 @@ export default function Home() {
 			.orderBy('timestamp', 'desc')
 	)
 
+	const [docs, setDocs] = useState([])
+	useEffect(() => {
+		const unsubscribe = db
+			.collection('userDocs')
+			.doc(session.user.email)
+			.collection('docs')
+			.orderBy('timestamp', 'desc')
+			.onSnapshot(snapshot =>
+				setDocs(
+					snapshot.docs?.map(doc => ({
+						id: doc.id,
+						data: doc.data(),
+					}))
+				)
+			)
+		return unsubscribe
+	}, [snapshot])
+
 	const router = useRouter()
 
 	const createDocument = async () => {
@@ -121,12 +139,12 @@ export default function Home() {
 						<p className='mr-12'>Date created</p>
 						<Icon name='folder' size='3xl' color='gray' />
 					</div>
-					{snapshot?.docs?.map(doc => (
+					{docs?.map(({ id, data }) => (
 						<DocumentRow
-							key={doc.id}
-							id={doc.id}
-							date={doc.data().timestamp}
-							fileName={doc.data().fileName}
+							key={id}
+							id={id}
+							date={data.timestamp}
+							fileName={data.fileName}
 						/>
 					))}
 				</div>

@@ -13,12 +13,15 @@ const DocumentRow = ({ id, fileName, date }) => {
 
 	const handleDelete = (e, id) => {
 		e.stopPropagation()
-		console.log(id)
-		db.collection('userDocs')
-			.doc(session.user.email)
-			.collection('docs')
-			.doc(id)
-			.delete()
+		if (
+			confirm('This action will delete the document. Do you want to continue?')
+		) {
+			db.collection('userDocs')
+				.doc(session.user.email)
+				.collection('docs')
+				.doc(id)
+				.delete()
+		}
 	}
 
 	return (
