@@ -1,82 +1,145 @@
 import Head from 'next/head'
+import Header from '../components/Header'
+import Button from '@material-tailwind/react/Button'
+import Icon from '@material-tailwind/react/Icon'
+import Image from 'next/image'
+import { getSession, useSession } from 'next-auth/client'
+import Login from '../components/Login'
+import Modal from '@material-tailwind/react/Modal'
+import ModalBody from '@material-tailwind/react/ModalBody'
+import ModalFooter from '@material-tailwind/react/ModalFooter'
+import { useEffect, useState } from 'react'
+import { db } from '../firebase'
+import firebase from 'firebase'
+import { useCollectionOnce } from 'react-firebase-hooks/firestore'
+import DocumentRow from '../components/DocumentRow'
+import { useRouter } from 'next/dist/client/router'
 
 export default function Home() {
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen py-2">
-      <Head>
-        <title>Create Next App</title>
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
+	const [session] = useSession()
+	if (!session) return <Login />
 
-      <main className="flex flex-col items-center justify-center w-full flex-1 px-20 text-center">
-        <h1 className="text-6xl font-bold">
-          Welcome to{' '}
-          <a className="text-blue-600" href="https://nextjs.org">
-            Next.js!
-          </a>
-        </h1>
+	const [showModal, setShowModal] = useState(false)
+	const [input, setInput] = useState('')
+	const [snapshot] = useCollectionOnce(
+		db
+			.collection('userDocs')
+			.doc(session.user.email)
+			.collection('docs')
+			.orderBy('timestamp', 'desc')
+	)
 
-        <p className="mt-3 text-2xl">
-          Get started by editing{' '}
-          <code className="p-3 font-mono text-lg bg-gray-100 rounded-md">
-            pages/index.js
-          </code>
-        </p>
+	const router = useRouter()
 
-        <div className="flex flex-wrap items-center justify-around max-w-4xl mt-6 sm:w-full">
-          <a
-            href="https://nextjs.org/docs"
-            className="p-6 mt-6 text-left border w-96 rounded-xl hover:text-blue-600 focus:text-blue-600"
-          >
-            <h3 className="text-2xl font-bold">Documentation &rarr;</h3>
-            <p className="mt-4 text-xl">
-              Find in-depth information about Next.js features and API.
-            </p>
-          </a>
+	const createDocument = async () => {
+		if (!input) return
 
-          <a
-            href="https://nextjs.org/learn"
-            className="p-6 mt-6 text-left border w-96 rounded-xl hover:text-blue-600 focus:text-blue-600"
-          >
-            <h3 className="text-2xl font-bold">Learn &rarr;</h3>
-            <p className="mt-4 text-xl">
-              Learn about Next.js in an interactive course with quizzes!
-            </p>
-          </a>
+		const { id } = await db
+			.collection('userDocs')
+			.doc(session.user.email)
+			.collection('docs')
+			.add({
+				fileName: input,
+				timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+			})
+		setInput('')
+		setShowModal(false)
+		router.push(`/doc/${id}`)
+	}
 
-          <a
-            href="https://github.com/vercel/next.js/tree/master/examples"
-            className="p-6 mt-6 text-left border w-96 rounded-xl hover:text-blue-600 focus:text-blue-600"
-          >
-            <h3 className="text-2xl font-bold">Examples &rarr;</h3>
-            <p className="mt-4 text-xl">
-              Discover and deploy boilerplate example Next.js projects.
-            </p>
-          </a>
+	const modal = (
+		<Modal size='sm' active={showModal} toggler={() => setShowModal(false)}>
+			<ModalBody>
+				<input
+					type='text'
+					value={input}
+					className='outline-none'
+					onChange={e => setInput(e.target.value)}
+					placeholder='Enter name of the doc'
+					onKeyDown={e => e.key === 'Enter' && createDocument()}
+				/>
+			</ModalBody>
+			<ModalFooter>
+				<Button
+					color='blue'
+					buttonType='link'
+					ripple='dark'
+					onClick={e => setShowModal(false)}
+				>
+					Cancel
+				</Button>
+				<Button color='blue' onClick={createDocument} ripple='light'>
+					Create
+				</Button>
+			</ModalFooter>
+		</Modal>
+	)
 
-          <a
-            href="https://vercel.com/import?filter=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className="p-6 mt-6 text-left border w-96 rounded-xl hover:text-blue-600 focus:text-blue-600"
-          >
-            <h3 className="text-2xl font-bold">Deploy &rarr;</h3>
-            <p className="mt-4 text-xl">
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
-        </div>
-      </main>
+	return (
+		<div>
+			<Head>
+				<title>Google Docs Clone</title>
+				<link rel='icon' href='/favicon.ico' />
+			</Head>
 
-      <footer className="flex items-center justify-center w-full h-24 border-t">
-        <a
-          className="flex items-center justify-center"
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <img src="/vercel.svg" alt="Vercel Logo" className="h-4 ml-2" />
-        </a>
-      </footer>
-    </div>
-  )
+			<Header />
+
+			{modal}
+
+			<section className='bg-[#f8f9fa] pb-10 px-10'>
+				<div className='max-w-3xl mx-auto'>
+					<div className='py-6 flex items-center justify-between'>
+						<h2 className='text-gray-700 text-lg'>Start a new doc</h2>
+						<Button
+							color='gray'
+							buttonType='outline'
+							iconOnly={true}
+							rounded={true}
+							ripple='dark'
+							className='border-0'
+						>
+							<Icon name='more_vert' size='3xl' />
+						</Button>
+					</div>
+					<div>
+						<div
+							className='relative h-52 w-40 border-2 cursor-pointer hover:border-blue-700'
+							onClick={e => setShowModal(true)}
+						>
+							<Image src='https://links.papareact.com/pju' layout='fill' />
+						</div>
+						<p className='ml-2 mt-1 font-semibold text-gray-700 text-sm'>
+							Blank
+						</p>
+					</div>
+				</div>
+			</section>
+			<section className='bg-white px-10 md:px-0'>
+				<div className='max-w-3xl mx-auto py-8 text-gray-700 text-sm'>
+					<div className='flex items-center justify-between pb-5'>
+						<h2 className='font-medium flex-grow'>My Documents</h2>
+						<p className='mr-12'>Date created</p>
+						<Icon name='folder' size='3xl' color='gray' />
+					</div>
+					{snapshot?.docs?.map(doc => (
+						<DocumentRow
+							key={doc.id}
+							id={doc.id}
+							date={doc.data().timestamp}
+							fileName={doc.data().fileName}
+						/>
+					))}
+				</div>
+			</section>
+		</div>
+	)
+}
+
+export const getServerSideProps = async context => {
+	const session = await getSession(context)
+	return {
+		props: {
+			session,
+		},
+	}
 }
